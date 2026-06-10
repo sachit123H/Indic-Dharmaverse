@@ -1,108 +1,109 @@
 import { PrismaClient } from '@prisma/client';
-import fs from 'fs';
-import path from 'path';
 
 const prisma = new PrismaClient();
 
-// This script expects two flat JSON files mapping segment_id to text content
-// Example: { "ram:1.1.1": "verse text..." }
-
 async function main() {
-  console.log('Starting seed...');
+  console.log('Starting seed for DN 1...');
 
   // 1. Create the base Text metadata
-  const textId = 'ram';
+  const textId = 'dn1';
   await prisma.text.upsert({
     where: { text_id: textId },
     update: {},
     create: {
       text_id: textId,
-      collection: 'epic',
-      title_root: 'Rāmāyaṇa',
-      title_en: 'Ramayana',
-      root_language: 'san',
-      base_encoding: 'slp1',
+      collection: 'sutta',
+      title_root: 'Brahmajāla Sutta',
+      title_en: 'The Prime Net',
+      root_language: 'pli',
+      base_encoding: 'iast',
     },
   });
 
-  // Load flat JSON data
-  const rootFilePath = path.join(__dirname, 'root.json');
-  const translationFilePath = path.join(__dirname, 'translation.json');
-
-  if (!fs.existsSync(rootFilePath) || !fs.existsSync(translationFilePath)) {
-    console.warn('⚠️ Missing root.json or translation.json in prisma folder.');
-    console.warn('Please create them with format { "segment_id": "text" } to seed actual data.');
-    return;
-  }
-
-  const rootData: Record<string, string> = JSON.parse(fs.readFileSync(rootFilePath, 'utf8'));
-  const translationData: Record<string, string> = JSON.parse(fs.readFileSync(translationFilePath, 'utf8'));
-
-  // Extract all unique segment IDs from both files
-  const allSegmentIds = new Set([...Object.keys(rootData), ...Object.keys(translationData)]);
-  const segmentIdsArray = Array.from(allSegmentIds).sort();
+  const segments = [
+    {
+      segment_id: 'dn1:0.1',
+      hierarchy_level: 1,
+      root: 'Brahmajālasutta',
+      translation: 'The Prime Net',
+    },
+    {
+      segment_id: 'dn1:1.1.1',
+      hierarchy_level: 2,
+      root: 'evaṃ me sutaṃ—',
+      translation: 'So I have heard.',
+    },
+    {
+      segment_id: 'dn1:1.1.2',
+      hierarchy_level: 2,
+      root: 'ekaṃ samayaṃ bhagavā antarā ca rājagahaṃ antarā ca nāḷandaṃ addhānamaggappaṭipanno hoti mahatā bhikkhusaṅghena saddhiṃ pañcamattehi bhikkhusatehi.',
+      translation: 'At one time the Buddha was traveling along the road between Rājagaha and Nālandā together with a large Saṅgha of five hundred monks.',
+    },
+    {
+      segment_id: 'dn1:1.1.3',
+      hierarchy_level: 2,
+      root: 'suppiyopi kho paribbājako antarā ca rājagahaṃ antarā ca nāḷandaṃ addhānamaggappaṭipanno hoti saddhiṃ antevāsinā brahmadattena māṇavena.',
+      translation: 'The wanderer Suppiya was also traveling along the road between Rājagaha and Nālandā together with his pupil, the student Brahmadatta.',
+    }
+  ];
 
   let seqNum = 1;
-  for (const segId of segmentIdsArray) {
+  for (const seg of segments) {
     // 2. Create Segment structure
     await prisma.segment.upsert({
-      where: { segment_id: segId },
+      where: { segment_id: seg.segment_id },
       update: {},
       create: {
-        segment_id: segId,
+        segment_id: seg.segment_id,
         text_id: textId,
-        hierarchy_level: 2, // Defaulting to verse level for the seed
+        hierarchy_level: seg.hierarchy_level,
         sequence_number: seqNum++,
       },
     });
 
-    // 3. Insert Root Cognate (if exists)
-    if (rootData[segId]) {
-      await prisma.segmentContent.upsert({
-        where: {
-          segment_id_content_type_language_code_author_uid: {
-            segment_id: segId,
-            content_type: 'root',
-            language_code: 'san',
-            author_uid: 'valmiki',
-          },
-        },
-        update: {
-          text_content: rootData[segId],
-        },
-        create: {
-          segment_id: segId,
+    // 3. Insert Root Cognate
+    await prisma.segmentContent.upsert({
+      where: {
+        segment_id_content_type_language_code_author_uid: {
+          segment_id: seg.segment_id,
           content_type: 'root',
-          language_code: 'san',
-          author_uid: 'valmiki',
-          text_content: rootData[segId],
+          language_code: 'pli',
+          author_uid: 'ms',
         },
-      });
-    }
+      },
+      update: {
+        text_content: seg.root,
+      },
+      create: {
+        segment_id: seg.segment_id,
+        content_type: 'root',
+        language_code: 'pli',
+        author_uid: 'ms',
+        text_content: seg.root,
+      },
+    });
 
-    // 4. Insert Translation Cognate (if exists)
-    if (translationData[segId]) {
-      await prisma.segmentContent.upsert({
-        where: {
-          segment_id_content_type_language_code_author_uid: {
-            segment_id: segId,
-            content_type: 'translation',
-            language_code: 'en',
-            author_uid: 'griffith',
-          },
-        },
-        update: {
-          text_content: translationData[segId],
-        },
-        create: {
-          segment_id: segId,
+    // 4. Insert Translation Cognate
+    await prisma.segmentContent.upsert({
+      where: {
+        segment_id_content_type_language_code_author_uid: {
+          segment_id: seg.segment_id,
           content_type: 'translation',
           language_code: 'en',
-          author_uid: 'griffith',
-          text_content: translationData[segId],
+          author_uid: 'sujato',
         },
-      });
-    }
+      },
+      update: {
+        text_content: seg.translation,
+      },
+      create: {
+        segment_id: seg.segment_id,
+        content_type: 'translation',
+        language_code: 'en',
+        author_uid: 'sujato',
+        text_content: seg.translation,
+      },
+    });
   }
 
   console.log('Seeding completed successfully.');
