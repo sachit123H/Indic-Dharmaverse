@@ -1,0 +1,50 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Text {
+  text_id       String    @id @db.VarChar(20)
+  collection    String?   @map("collection_code") @db.VarChar(10)
+  title_root    String?   @db.VarChar(255)
+  title_en      String?   @db.VarChar(255)
+  root_language String?   @db.VarChar(10)
+  base_encoding String?   @db.VarChar(20)
+  created_at    DateTime? @default(now())
+  segments      Segment[]
+
+  @@map("texts")
+}
+
+model Segment {
+  segment_id        String           @id @db.VarChar(50)
+  text_id           String?          @db.VarChar(20)
+  hierarchy_level   Int?
+  parent_segment_id String?          @db.VarChar(50)
+  sequence_number   Int?
+  
+  text              Text?            @relation(fields: [text_id], references: [text_id])
+  parent            Segment?         @relation("SegmentHierarchy", fields: [parent_segment_id], references: [segment_id])
+  children          Segment[]        @relation("SegmentHierarchy")
+  contents          SegmentContent[]
+
+  @@map("segments")
+}
+
+model SegmentContent {
+  id            BigInt   @id @default(autoincrement())
+  segment_id    String?  @db.VarChar(50)
+  content_type  String?  @db.VarChar(20)
+  language_code String?  @db.VarChar(10)
+  author_uid    String?  @db.VarChar(50)
+  text_content  String?  @db.Text
+  
+  segment       Segment? @relation(fields: [segment_id], references: [segment_id])
+
+  @@unique([segment_id, content_type, language_code, author_uid])
+  @@map("segment_content")
+}
