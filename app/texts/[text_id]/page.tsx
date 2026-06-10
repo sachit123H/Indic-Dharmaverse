@@ -100,10 +100,14 @@ export default function TextPage({ params }: { params: { text_id: string } }) {
 
 function SegmentRow({ 
   segment, 
-  targetScript 
+  targetScript,
+  showEn,
+  showHi
 }: { 
   segment: SegmentData, 
-  targetScript: 'iast' | 'devanagari' 
+  targetScript: 'iast' | 'devanagari',
+  showEn: boolean,
+  showHi: boolean
 }) {
   const rootText = segment.root_pli || segment.root_san || '';
   const transliteratedRoot = useTransliterate(rootText, 'iast', targetScript);
@@ -124,9 +128,22 @@ function SegmentRow({
       </div>
 
       <div className="space-y-3 md:pt-7">
-        <p className="text-lg leading-relaxed text-gray-600 font-serif">
-          {segment.translation_en}
-        </p>
+        {showEn && segment.translation_en && (
+          <div className="mb-4">
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1 block">English</span>
+            <p className="text-lg leading-relaxed text-gray-600 font-serif">
+              {segment.translation_en}
+            </p>
+          </div>
+        )}
+        {showHi && segment.translation_hi && (
+          <div>
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1 block">Hindi</span>
+            <p className="text-lg leading-relaxed text-gray-800 font-serif">
+              {segment.translation_hi}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
